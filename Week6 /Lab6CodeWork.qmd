@@ -3,7 +3,7 @@ title: "Lab 06 - Text Mining"
 author: Mona Bandov
 format:
   html:
-    embed resources: true
+    embed-resources: true
 editor: visual
 date: "End of Friday"
 ---
