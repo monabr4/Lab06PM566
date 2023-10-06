@@ -1,0 +1,280 @@
+---
+title: "Lab 06 - Text Mining"
+author: Mona Bandov
+format:
+  html:
+    embed resources: true
+editor: visual
+date: "End of Friday"
+---
+
+# **Lab 06 - Text Mining**
+
+```{r}
+#knitr::opts_chunk$set(eval = FALSE, include  = FALSE)
+```
+
+## **Learning goals**
+
+-   Use `unnest_tokens()` and `unnest_ngrams()` to extract tokens and ngrams from text.
+
+-   Use dplyr and ggplot2 to analyze text data
+
+# **Lab description**
+
+For this lab we will be working with a new dataset. The dataset contains transcription samples from <https://www.mtsamples.com/>. And is loaded and "fairly" cleaned at <https://raw.githubusercontent.com/USCbiostats/data-science-data/master/00_mtsamples/mtsamples.csv>.
+
+This markdown document should be rendered using `github_document` document.
+
+### **Setup packages**
+
+You should load in `dplyr`, (or `data.table` if you want to work that way), `ggplot2` and `tidytext`. If you don't already have `tidytext` then you can install with
+
+```{r}
+library(tidytext)
+library(tidyverse)
+library(knitr)
+library(dplyr)
+library(ggplot2)
+library(data.table)
+library(tm)
+```
+
+### **read in Medical Transcriptions**
+
+Loading in reference transcription samples from <https://www.mtsamples.com/>
+
+```{r}
+library(readr)
+library(dplyr)
+mt_samples <- read_csv("https://raw.githubusercontent.com/USCbiostats/data-science-data/master/00_mtsamples/mtsamples.csv")
+mt_samples <- mt_samples %>%
+  select(description, medical_specialty, transcription)
+
+head(mt_samples)
+```
+
+## **Question 1: What specialties do we have?**
+
+We can use `count()` from `dplyr` to figure out how many different catagories do we have? Are these catagories related? overlapping? evenly distributed?
+
+```{r}
+
+mt_samples %>%
+  count(medical_specialty, sort = TRUE)
+```
+
+## **Question 2**
+
+-   Tokenize the the words in the `transcription` column
+
+-   Count the number of times each token appears
+
+-   Visualize the top 20 most frequent words
+
+Explain what we see from this result. Does it makes sense? What insights (if any) do we get?
+
+```{r}
+
+
+# Tokenize the words
+tokenized <- mt_samples %>% unnest_tokens(word, transcription)
+tokenized
+# Count the number of times each token appears
+word_counts <- tokenized %>% count(word, sort = TRUE)
+word_counts
+# Top 20 most frequent words
+top_20_words <- word_counts %>% slice_head(n = 20)
+top_20_words
+ggplot(top_20_words, aes(x = reorder(word, n), y = n)) +
+  geom_col() +
+  coord_flip() +
+  labs(title = "Top 20 Most Frequent Words in Transcription",
+       x = "Word",
+       y = "Count")
+
+```
+
+## **Question 3**
+
+-   Redo visualization but remove stopwords before
+
+-   Bonus points if you remove numbers as well
+
+What do we see know that we have removed stop words? Does it give us a better idea of what the text is about?
+
+```{r}
+
+
+cleaned_tokens <- mt_samples %>%
+  unnest_tokens(word, transcription) %>%
+  mutate(word = tolower(word)) %>%
+  filter(!word %in% stopwords("en")) %>%
+  filter(!str_detect(word, "\\d+"))
+
+word_freq <- cleaned_tokens %>%
+  count(word, sort = TRUE)
+
+top_20_words <- word_freq %>%
+  slice_head(n = 20)
+
+ggplot(top_20_words, aes(x = reorder(word, n), y = n)) +
+  geom_col() +
+  coord_flip() +
+  labs(title = "Top 20 Most Frequent Words in Transcription (Stop Words Removed)",
+       x = "Word",
+       y = "Count")
+
+```
+
+# **Question 4**
+
+Repeat question 2, but this time tokenize into bi-grams. how does the result change if you look at tri-grams?
+
+```{r}
+
+
+bi_grams <- mt_samples %>% unnest_tokens(bigram, transcription, token = "ngrams", n = 2)
+tri_grams <- mt_samples %>% unnest_tokens(trigram, transcription, token = "ngrams", n = 3)
+
+bi_gram_counts <- bi_grams %>%count(bigram, sort = TRUE)
+
+tri_gram_counts <- tri_grams %>%count(trigram, sort = TRUE)
+
+top_20_bi_grams <- bi_gram_counts %>%
+  slice_head(n = 20)
+
+top_20_tri_grams <- tri_gram_counts %>%
+  slice_head(n = 20)
+ggplot(top_20_bi_grams, aes(x = reorder(bigram, n), y = n)) +
+  geom_col() +
+  coord_flip() +
+  labs(title = "Top 20 Most Frequent Bi-grams in Transcription",
+       x = "Bi-gram",
+       y = "Count")
+
+ ggplot(top_20_tri_grams, aes(x = reorder(trigram, n), y = n)) +
+  geom_col() +
+  coord_flip() +
+  labs(title = "Top 20 Most Frequent Tri-grams in Transcription",
+       x = "Tri-gram",
+       y = "Count")
+
+```
+
+# **Question 5**
+
+Using the results you got from questions 4. Pick a word and count the words that appears after and before it.
+
+```{r}
+
+target_word <- "history of"
+
+bi_grams_with_target <- bi_grams %>%
+  filter(str_detect(bigram, target_word))
+
+
+bi_grams_split <- bi_grams_with_target %>%
+  separate(bigram, into = c("word_before", "word_after"), sep = " ")
+
+
+word_counts_around_target <- bi_grams_split %>%
+  filter(word_before != target_word & word_after != target_word) %>%
+  group_by(word_before, word_after) %>%
+  summarise(count = n()) %>%
+  ungroup() %>%
+  arrange(desc(count))
+
+word_counts_around_target
+
+
+```
+
+# **Question 6**
+
+Which words are most used in each of the specialties. you can use `group_by()` and `top_n()` from `dplyr` to have the calculations be done within each specialty. Remember to remove stopwords. How about the most 5 used words?
+
+```{r}
+
+
+
+cleaned_tokens <- mt_samples %>%
+  unnest_tokens(word, transcription) %>%
+  mutate(word = tolower(word)) %>%
+  anti_join(stop_words)
+
+
+specialty_word_counts <- cleaned_tokens %>%
+  group_by(medical_specialty, word) %>%
+  summarise(count = n()) %>%
+  ungroup()
+
+
+top_5_words_by_specialty <- specialty_word_counts %>%
+  group_by(medical_specialty) %>%
+  top_n(5, count) %>%
+  arrange(medical_specialty, desc(count))
+
+
+top_1_word_by_specialty <- specialty_word_counts %>%
+  group_by(medical_specialty) %>%
+  top_n(1, count) %>%
+  arrange(medical_specialty, desc(count))
+
+
+top_5_words_by_specialty
+top_1_word_by_specialty
+
+
+
+```
+
+# **Question 7 - extra**
+
+Find your own insight in the data:
+
+Ideas:
+
+-   Interesting ngrams
+
+-   See if certain words are used more in some specialties then others
+
+```{r}
+
+
+
+
+bi_grams <- mt_samples %>%
+  unnest_tokens(bigram, transcription, token = "ngrams", n = 2)
+
+stop_words <- data.frame(word = stopwords("en"))
+
+
+bi_grams_cleaned <- bi_grams %>%
+  filter(!bigram %in% stop_words$word)
+
+
+bi_gram_counts <- bi_grams_cleaned %>%
+  group_by(medical_specialty, bigram) %>%
+  summarise(count = n(), .groups = "drop")
+
+
+top_5_bi_grams <- bi_gram_counts %>%
+  group_by(medical_specialty) %>%
+  top_n(5, count) %>%
+  arrange(medical_specialty, desc(count))
+
+
+ggplot(top_5_bi_grams, aes(x = reorder(bigram, count), y = count, fill = medical_specialty)) +
+  geom_col() +
+  coord_flip() +
+  labs(title = "Top 5 Bi-grams in Transcriptions by Medical Specialty",
+       x = "Bi-gram",
+       y = "Count",
+       fill = "Medical Specialty") +
+  theme(legend.position = "top") +
+  facet_wrap(~medical_specialty, scales = "free_y", ncol = 2)
+
+
+
+```

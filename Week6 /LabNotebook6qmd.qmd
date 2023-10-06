@@ -1,0 +1,168 @@
+---
+title: "Untitled"
+format: html
+editor: visual
+---
+
+## Quarto
+
+Quarto enables you to weave together content and executable code into a finished document. To learn more about Quarto see <https://quarto.org>.
+
+## Running Code
+
+When you click the **Render** button a document will be generated that includes both content and the output of embedded code. You can embed code like this:
+
+```{r}
+library(tidyverse)
+alice <- readRDS("~/Downloads/alice.rds")
+alice
+```
+
+You can add options to executable code like this
+
+```{r}
+library(tidytext)
+alice %>%
+  unnest_tokens(token, text)
+```
+
+```{r}
+
+library(dplyr)
+alice %>%
+  unnest_tokens(token, text) %>%
+  count(token)
+
+```
+
+```{r}
+library(dplyr)
+alice %>%
+  unnest_tokens(token, text) %>%
+  count(token, sort = TRUE) #added sorts 
+```
+
+```{r}
+
+library(dplyr)
+alice %>%
+  unnest_tokens(token, text) %>%
+  count(chapter, token)
+
+```
+
+```{r}
+
+library(dplyr)
+alice %>%
+  unnest_tokens(token, text) %>%
+  group_by(chapter) %>%
+  count(token) %>%
+  top_n(10, n)
+```
+
+```{r}
+
+
+library(dplyr)
+library(ggplot2)
+alice %>%
+  unnest_tokens(token, text) %>%
+  count(token) %>%
+  top_n(10, n) %>%
+  ggplot(aes(n, token)) +
+  geom_col()
+```
+
+```{r}
+
+library(dplyr)
+library(ggplot2)
+library(forcats)
+alice %>%
+  unnest_tokens(token, text) %>%
+  count(token) %>%
+  top_n(10, n) %>%
+  ggplot(aes(n, fct_reorder(token, n))) +
+  geom_col()
+```
+
+```{r}
+alice %>%
+  unnest_tokens(token, text) %>%
+  anti_join(stop_words, by = c("token" = "word")) %>%
+  count(token, sort = TRUE)
+```
+
+```{r}
+head(stop_words)
+```
+
+```{r}
+
+alice %>%
+  unnest_tokens(word, text) %>%
+  anti_join(stop_words, by = c("word")) %>%
+  count(word, sort = TRUE)
+```
+
+```{r}
+
+alice %>%
+  unnest_tokens(word, text) %>%
+  anti_join(stop_words, by = c("word")) %>%
+  count(word, sort = TRUE) %>%
+  top_n(10, n) %>%
+  ggplot(aes(n, fct_reorder(word, n))) +
+  geom_col()
+```
+
+```{r}
+alice %>%
+  unnest_ngrams(ngram, text, n = 2)
+```
+
+```{r}
+alice %>%
+  unnest_ngrams(ngram, text, n = 2) %>%
+  count(ngram, sort = TRUE)
+```
+
+```{r}
+alice %>%
+  unnest_ngrams(ngram, text, n = 2) %>%
+  separate(ngram, into = c("word1", "word2"), sep = " ") %>%
+  select(word1, word2)
+```
+
+```{r}
+alice %>%
+  unnest_ngrams(ngram, text, n = 2) %>%
+  separate(ngram, into = c("word1", "word2"), sep = " ") %>%
+  select(word1, word2) %>%
+  filter(word1 == "alice")
+```
+
+```{r}
+alice %>%
+  unnest_ngrams(ngram, text, n = 2) %>%
+  separate(ngram, into = c("word1", "word2"), sep = " ") %>%
+  select(word1, word2) %>%
+  filter(word1 == "alice") %>%
+  count(word2, sort = TRUE)
+```
+
+```{r}
+
+alice %>%
+  unnest_tokens(text, text) %>%
+  count(text, chapter)
+```
+
+```{r}
+alice %>%
+  unnest_tokens(text, text) %>%
+  count(text, chapter) %>%
+  bind_tf_idf(text, chapter, n) %>%
+  arrange(desc(tf_idf))
+```
